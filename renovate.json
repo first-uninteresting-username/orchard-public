@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "dependencyDashboard": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Deployment images in images.yaml",
+      "managerFilePatterns": [
+        "/^images\\.yaml$/"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)[\\w-]+:[ \\t]+(?<depName>[^\\s:]+):(?<currentValue>[^\\s@#]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "These images also publish date, commit or v-prefixed duplicate tags; only follow plain releases",
+      "matchDepNames": [
+        "ghcr.io/feldorn/free-games-claimer",
+        "ghcr.io/juanfont/headscale"
+      ],
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/"
+    }
+  ]
+}

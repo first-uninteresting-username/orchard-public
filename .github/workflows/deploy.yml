@@ -1,0 +1,55 @@
+name: Deploy image bumps
+
+on:
+  push:
+    branches: [main]
+    paths: [images.yaml]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Each deployment has its own Orchard deploy webhook token in a secret named
+      # ORCHARD_TOKEN_<NAME>, e.g. free-games -> ORCHARD_TOKEN_FREE_GAMES.
+      - name: Roll changed images out to Orchard
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          BEFORE: ${{ github.event.before }}
+          ORCHARD_API_URL: https://orchard.iameasytoremember.com
+        run: |
+          set -euo pipefail
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base=$BEFORE
+          else
+            base=$(git hash-object -t tree /dev/null)
+          fi
+          changed=$(git diff -U0 "$base" HEAD -- images.yaml | sed -n 's/^+\([a-z0-9-]*\):[[:space:]]*\([^[:space:]]*\).*/\1 \2/p')
+          failed=0
+          while read -r name ref; do
+            [ -n "$name" ] || continue
+            image=${ref%:*}
+            tag=${ref##*:}
+            key=ORCHARD_TOKEN_$(echo "$name" | tr 'a-z-' 'A-Z_')
+            token=$(jq -r --arg k "$key" '.[$k] // empty' <<<"$SECRETS")
+            if [ -z "$token" ]; then
+              echo "::error::$name: secret $key is not set"
+              failed=1
+              continue
+            fi
+            echo "Deploying $name -> $image:$tag"
+            if ! curl -sS --fail-with-body -X POST "$ORCHARD_API_URL/apiv1/webhooks/deploy" \
+                -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+                -d "$(jq -n --arg image "$image" --arg tag "$tag" '{image: $image, tag: $tag}')"; then
+              echo "::error::$name: deploy failed"
+              failed=1
+            fi
+            echo
+          done <<<"$changed"
+          exit $failed
