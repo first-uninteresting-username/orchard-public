@@ -8,4 +8,4 @@ headplane: ghcr.io/tale/headplane:0.8.2
 headscale: ghcr.io/juanfont/headscale:0.29.6
 miniflux: miniflux/miniflux:2.3.4
 music: deluan/navidrome:0.64.2
-omniroute: diegosouzapw/omniroute:3.8.52
+omniroute: diegosouzapw/omniroute:3.8.53
